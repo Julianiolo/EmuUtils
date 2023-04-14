@@ -289,12 +289,15 @@ void EmuUtils::SymbolTable::setupConnections(size_t cnt, bool postProc) {
 		}
 		std::vector<std::string> demangeled = symbolsAddDemanglFunc(names, symbolsAddDemanglFuncUserData);
 		for (size_t i = 0; i < cnt; i++) {
-			symbolStorage[(symbolStorage.size()-cnt-i) + i].demangled = std::move(demangeled[i]);
+			auto& symbol = symbolStorage[(symbolStorage.size() - cnt) + i];
+			symbol.hasDemangledName = symbol.name != demangeled[i];
+			symbol.demangled = std::move(demangeled[i]);
 		}
 	}
 
 	std::sort(symbolStorage.begin(), symbolStorage.end());
 
+	allSymbols.clear();
 	symbolsRam.clear();
 	symbolsRom.clear();
 	symbsIdMap.clear();
@@ -332,6 +335,8 @@ void EmuUtils::SymbolTable::setupConnections(size_t cnt, bool postProc) {
 
 		if (s.section == ".text")
 			symbolsRom.push_back(id);
+
+		allSymbols.push_back(id);
 
 		i++;
 	}
@@ -408,10 +413,12 @@ bool EmuUtils::SymbolTable::loadFromDump(const char* str, const char* str_end) {
 	return true;
 }
 bool EmuUtils::SymbolTable::loadFromDumpFile(const char* path) {
-	bool success = false;
-	std::string fileStr = StringUtils::loadFileIntoString(path, &success);
-	if (!success) { // loading didnt work
-		LU_LOGF_(LogUtils::LogLevel_Error, "Cannot Open symbol table dump File: %s", path);
+	std::string fileStr;
+	try {
+		fileStr = StringUtils::loadFileIntoString(path);
+	}
+	catch (const std::runtime_error& e) {
+		LU_LOGF_(LogUtils::LogLevel_Error, "Cannot Open symbol table dump File: \"%s\"", e.what());
 		return false;
 	}
 
@@ -488,10 +495,12 @@ bool EmuUtils::SymbolTable::loadDeviceSymbolDump(const char* str, const char* st
 	return true;
 }
 bool EmuUtils::SymbolTable::loadDeviceSymbolDumpFile(const char* path) {
-	bool success = true;
-	std::string fileStr = StringUtils::loadFileIntoString(path, &success); // (std::string("Cannot Open device symbol table dump File: ") + path).c_str()
-	if (!success) {// loading didnt work
-		LU_LOGF_(LogUtils::LogLevel_Warning, "Cannot Open device symbol table dump file: %s", path);
+	std::string fileStr;
+	try {
+		fileStr = StringUtils::loadFileIntoString(path); // (std::string("Cannot Open device symbol table dump File: ") + path).c_str()
+	}
+	catch (const std::runtime_error& e) {
+		LU_LOGF_(LogUtils::LogLevel_Warning, "Cannot Open device symbol table dump file: \"%s\"", e.what());
 		return false;
 	}
 
@@ -573,15 +582,16 @@ const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::getSymbolById(uint32
 	return &symbolStorage[res->second];
 }
 
-const std::vector<EmuUtils::SymbolTable::Symbol>& EmuUtils::SymbolTable::getSymbols() const {
-	return symbolStorage;
-}
+
 const std::map<std::string, EmuUtils::SymbolTable::Symbol::Section>& EmuUtils::SymbolTable::getSections() const{
 	return sections;
 }
 
 const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::getSymbol(const SymbolList& symbs, size_t ind) const {
 	return getSymbolById(symbs[ind]);
+}
+const EmuUtils::SymbolTable::SymbolList& EmuUtils::SymbolTable::getSymbols() const {
+	return allSymbols;
 }
 const EmuUtils::SymbolTable::SymbolList& EmuUtils::SymbolTable::getSymbolsRam() const {
 	return symbolsRam;
@@ -590,8 +600,11 @@ const EmuUtils::SymbolTable::SymbolList& EmuUtils::SymbolTable::getSymbolsRom() 
 	return symbolsRom;
 }
 
-const EmuUtils::SymbolTable::SymbolList& EmuUtils::SymbolTable::getSymbolsBySection(const std::string& section) const{
-	return symbolsBySections.at(section);
+const EmuUtils::SymbolTable::SymbolList* EmuUtils::SymbolTable::getSymbolsBySection(const std::string& section) const{
+	auto res = symbolsBySections.find(section);
+	if (res != symbolsBySections.end())
+		return &res->second;
+	return nullptr;
 }
 
 EmuUtils::SymbolTable::symb_size_t EmuUtils::SymbolTable::getMaxRamAddrEnd() const {
@@ -604,7 +617,8 @@ std::vector<std::pair<uint32_t, std::string>> EmuUtils::SymbolTable::getFuncSymb
 	const auto& symList = getSymbolsRom();
 	for (size_t i = 0; i < symList.size(); i++) {
 		const Symbol* symbol = getSymbol(symList, i);
-		res.push_back({ symbol->value, symbol->name });
+		if(symbol->flags.scope & Symbol::Flags_Scope_Global || symbol->flags.funcFileObjectFlags & Symbol::Flags_FuncFileObj_Function)
+			res.push_back({ (uint32_t)symbol->value, symbol->name });
 	}
 
 	return res;
@@ -614,15 +628,17 @@ std::pair<std::vector<std::tuple<std::string, uint32_t, uint32_t>>,std::vector<u
 	std::vector<std::tuple<std::string, uint32_t, uint32_t>> dataSymbs;
 	std::vector<uint32_t> seeds;
 
-	const auto& symList = getSymbolsBySection(".text");
-	for (size_t i = 0; i < symList.size(); i++) {
-		const Symbol* symbol = getSymbol(symList, i);
+	const auto* symList = getSymbolsBySection(".text");
+	if(symList == nullptr) return { dataSymbs, seeds };
+
+	for (size_t i = 0; i < symList->size(); i++) {
+		const Symbol* symbol = getSymbol(*symList, i);
 
 		if(symbol->size > 0 && symbol->flags.funcFileObjectFlags == Symbol::Flags_FuncFileObj_Obj) {
-			dataSymbs.push_back({symbol->name, symbol->value, symbol->size});
+			dataSymbs.push_back({symbol->name, (uint32_t)symbol->value, (uint32_t)symbol->size});
 		}
-		else {
-			seeds.push_back(symbol->value);
+		else if(symbol->flags.scope & Symbol::Flags_Scope_Global || symbol->flags.funcFileObjectFlags & Symbol::Flags_FuncFileObj_Function) {
+			seeds.push_back((uint32_t)symbol->value);
 		}
 	}
 
@@ -633,6 +649,9 @@ std::pair<std::vector<std::tuple<std::string, uint32_t, uint32_t>>,std::vector<u
 			while (curr < dataSymbs.size() && std::get<1>(dataSymbs[curr]) < seeds[i]) {
 				curr++;
 			}
+
+			if (curr >= dataSymbs.size())
+				break;
 
 			if (seeds[i] == std::get<1>(dataSymbs[curr])) {
 				seeds.erase(seeds.begin() + i);
@@ -773,8 +792,6 @@ size_t EmuUtils::SymbolTable::Symbol::sizeBytes() const {
 size_t EmuUtils::SymbolTable::sizeBytes() const {
 	size_t sum = 0;
 
-	sum += sizeof(mcu);
-
 	sum += sizeof(symbolsAddDemanglFunc);
 	sum += sizeof(symbolsAddDemanglFuncUserData);
 
@@ -796,30 +813,30 @@ size_t EmuUtils::SymbolTable::sizeBytes() const {
 
 // ##### utils #####
 
-EmuUtils::SymbolTable::SymbolFeeder::SymbolFeeder(const SymbolTable* table, const SymbolList& list) : table(table), list(list) {
+EmuUtils::SymbolTable::SymbolFeeder::SymbolFeeder(const SymbolTable* table, const SymbolList* list) : table(table), list(list) {
 
 }
 
 const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::SymbolFeeder::getSymbol(symb_size_t addr) {
-	if (curr >= list.size())
+	if (!table || !list || curr >= list->size())
 		return nullptr;
 
 	const Symbol* symbol = nullptr;
 	
 	
 	while (true) {
-		symbol = table->getSymbol(list, curr);
+		symbol = table->getSymbol(*list, curr);
 
-		if (curr >= list.size() || (addr >= symbol->value && symbol->size > 0))
+		if (curr+1 >= list->size() || (symbol->addrEnd() > addr && symbol->size > 0))
 			break;
 
 		curr++;
 	}
 
-	if (!curr)
+	if (curr >= list->size())
 		return nullptr;
 
-	if (addr >= symbol->value && addr <= symbol->addrEnd())
+	if (addr >= symbol->value && addr < symbol->addrEnd())
 		return symbol;
 
 	return nullptr;
