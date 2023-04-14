@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 
+#include "DataUtils.h"
+
 namespace EmuUtils {
 	class ELF {
 	public:
@@ -204,7 +206,7 @@ namespace EmuUtils {
 							uint8_t opcode_base;
 							uint8_t std_opcode_lengths[9];
 
-							static constexpr size_t byteSize = 4 + 2 + 4 + 1 + 1 + 1 + 1 + 9;
+							static constexpr size_t byteSize = 4 + 2 + 4 + 1 + 1 + 1 + 1 + sizeof(std_opcode_lengths);
 						} header;
 
 						std::pair<size_t, size_t> section;
@@ -245,8 +247,8 @@ namespace EmuUtils {
 					std::vector<File> files;
 					
 
-					static CU::Header parseCUHeader(const uint8_t* data, size_t dataLen, const ELFHeader::Ident& ident);
-					static std::vector<CU::Entry> parseLineByteCode(const uint8_t* data, size_t* off_, size_t end, CU* cu, _debug_line* dl, bool lsb);
+					static CU::Header parseCUHeader(DataUtils::ByteStream* stream);
+					static std::vector<CU::Entry> parseLineByteCode(DataUtils::ByteStream* stream, CU* cu, _debug_line* dl);
 
 					CU::Entry* getEntry(size_t ind);
 					const CU::Entry* getEntry(size_t ind) const;
@@ -257,8 +259,8 @@ namespace EmuUtils {
 					size_t sizeBytes() const;
 				} debug_line;
 				static _debug_line parse_debug_line(const uint8_t* data, size_t dataLen, const ELFHeader::Ident& ident);
-				static uint64_t getUleb128(const uint8_t* data, size_t* off);
-				static int64_t getSleb128(const uint8_t* data, size_t* off);
+				static uint64_t getUleb128(DataUtils::ByteStream* stream);
+				static int64_t getSleb128(DataUtils::ByteStream* stream);
 
 				size_t sizeBytes() const;
 			} dwarf;
@@ -287,11 +289,11 @@ namespace EmuUtils {
 		static uint64_t intFromByteArr(const uint8_t* data, uint8_t byteLen, bool lsb = false);
 		static uint64_t intFromByteArrAdv(const uint8_t** data, uint8_t byteLen, bool lsb = false);
 
-		static ELFFile::ELFHeader::Ident parseELFHeaderIdentification(const uint8_t* data);
-		static ELFFile::ELFHeader parseELFHeader(const uint8_t* data, size_t dataLen, size_t* size);
-		static ELFFile::ProgramHeader parseELFProgramHeader(const uint8_t* data, size_t dataLen, size_t off, const ELFFile::ELFHeader::Ident& ident);
-		static ELFFile::SectionHeader parseELFSectionHeader(const uint8_t* data, size_t dataLen, size_t off, const ELFFile::ELFHeader::Ident& ident);
-		static ELFFile::SymbolTableEntry parseELFSymbol(const uint8_t* data, size_t dataLen, size_t off, const ELFFile::ELFHeader::Ident& ident);
+		static ELFFile::ELFHeader::Ident parseELFHeaderIdentification(DataUtils::ByteStream* stream);
+		static ELFFile::ELFHeader parseELFHeader(DataUtils::ByteStream* stream);
+		static ELFFile::ProgramHeader parseELFProgramHeader(DataUtils::ByteStream* stream, const ELFFile::ELFHeader::Ident& ident);
+		static ELFFile::SectionHeader parseELFSectionHeader(DataUtils::ByteStream* stream, const ELFFile::ELFHeader::Ident& ident);
+		static ELFFile::SymbolTableEntry parseELFSymbol(DataUtils::ByteStream* stream, const ELFFile::ELFHeader::Ident& ident);
 
 		static ELFFile::DWARF parseDWARF(const ELFFile& elf);
 	public:
@@ -305,15 +307,19 @@ namespace EmuUtils {
 
 namespace DataUtils {
 	inline constexpr size_t approxSizeOf(const EmuUtils::ELF::ELFFile::ProgramHeader& v) {
+		DU_UNUSED(v);
 		return sizeof(EmuUtils::ELF::ELFFile::ProgramHeader);
 	}
 	inline constexpr size_t approxSizeOf(const EmuUtils::ELF::ELFFile::SectionHeader& v) {
+		DU_UNUSED(v);
 		return sizeof(EmuUtils::ELF::ELFFile::SectionHeader);
 	}
 	inline constexpr size_t approxSizeOf(const EmuUtils::ELF::ELFFile::SymbolTableEntry& v) {
+		DU_UNUSED(v);
 		return sizeof(EmuUtils::ELF::ELFFile::SymbolTableEntry);
 	}
 	inline constexpr size_t approxSizeOf(const EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Entry& v) {
+		DU_UNUSED(v);
 		return sizeof(EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Entry);
 	}
 	inline size_t approxSizeOf(const EmuUtils::ELF::ELFFile::DWARF::_debug_line::File& v) {

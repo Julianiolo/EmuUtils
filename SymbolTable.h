@@ -10,8 +10,6 @@
 #include "ElfReader.h"
 
 namespace EmuUtils {
-	class ATmega32u4;
-
 	class SymbolTable {
 	public:
 		typedef uint64_t symb_size_t;
@@ -91,8 +89,6 @@ namespace EmuUtils {
 		typedef std::vector<std::string> (*SymbolsAddDemanglFuncPtr)(std::vector<const char*> names, void* userData);
 		typedef std::vector<uint32_t> SymbolList;
 	private:
-		ATmega32u4* mcu;
-
 		SymbolsAddDemanglFuncPtr symbolsAddDemanglFunc = nullptr;
 		void* symbolsAddDemanglFuncUserData = nullptr;
 
@@ -103,6 +99,7 @@ namespace EmuUtils {
 		std::map<std::string, uint32_t> symbsNameMap;
 		std::map<std::string, std::vector<uint32_t>> symbolsBySections;
 
+		std::vector<uint32_t> allSymbols;
 		std::vector<uint32_t> symbolsRam;
 		std::vector<uint32_t> symbolsRom;
 
@@ -140,13 +137,13 @@ namespace EmuUtils {
 		const Symbol* getSymbolByValue(const symb_size_t value, const SymbolList& list) const;
 		const Symbol* getSymbolById(uint32_t id) const;
 
-		const std::vector<Symbol>& getSymbols() const;
 		const std::map<std::string, Symbol::Section>& getSections() const;
 
 		const Symbol* getSymbol(const SymbolList& symbs, size_t ind) const;
+		const SymbolList& getSymbols() const;
 		const SymbolList& getSymbolsRam() const;
 		const SymbolList& getSymbolsRom() const;
-		const SymbolList& getSymbolsBySection(const std::string& section) const;
+		const SymbolList* getSymbolsBySection(const std::string& section) const;
 
 		symb_size_t getMaxRamAddrEnd() const;
 
@@ -163,10 +160,10 @@ namespace EmuUtils {
 		class SymbolFeeder {
 		private:
 			const SymbolTable* table;
-			SymbolList list;
+			const SymbolList* list;
 			size_t curr = 0;
 		public:
-			SymbolFeeder(const SymbolTable* table, const SymbolList& list);
+			SymbolFeeder(const SymbolTable* table, const SymbolList* list);
 
 			const Symbol* getSymbol(symb_size_t addr);
 		};
