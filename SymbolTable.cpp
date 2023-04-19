@@ -107,7 +107,8 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.scope = Symbol::Flags_Scope_Global | Symbol::Flags_Scope_Local; 
 			break;
 		default:
-			abort();
+			flags.scope = Symbol::Flags_Scope_Error;
+			break;
 	}
 
 	switch (str[1]) {
@@ -118,7 +119,8 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.isWeak = true;
 			break;
 		default:
-			abort();
+			flags.isWeak = false;
+			break;
 	}
 
 	switch (str[2]) {
@@ -129,7 +131,8 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.isConstuctor = true;
 			break;
 		default:
-			abort();
+			flags.isConstuctor = false;
+			break;
 	}
 
 	switch (str[3]) {
@@ -140,7 +143,8 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.isWarning = true;
 			break;
 		default:
-			abort();
+			flags.isWarning = false;
+			break;
 	}
 
 	switch (str[4]) {
@@ -154,7 +158,8 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.indirectFlags = Symbol::Flags_Indirect_evalWhileReloc;
 			break;
 		default:
-			abort();
+			flags.indirectFlags = Symbol::Flags_Indirect_Error;
+			break;
 	}
 
 	switch (str[5]) {
@@ -168,7 +173,8 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.debugDynamicFlags = Symbol::Flags_DebDyn_DynamicSymbol;
 			break;
 		default:
-			abort();
+			flags.debugDynamicFlags = Symbol::Flags_DebDyn_Error;
+			break;
 	}
 
 	switch (str[6]) {
@@ -185,7 +191,7 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 			flags.funcFileObjectFlags = Symbol::Flags_FuncFileObj_Obj;
 			break;
 		default:
-			abort();
+			flags.funcFileObjectFlags = Symbol::Flags_FuncFileObj_Error;
 	}
 
 	return flags;
