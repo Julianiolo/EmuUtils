@@ -30,17 +30,20 @@ namespace EmuUtils {
 				Flags_Scope_None = 0,
 				Flags_Scope_Local = 1<<0,
 				Flags_Scope_Global = 1<<1,
-				Flags_Scope_Unique = 1<<2
+				Flags_Scope_Unique = 1<<2,
+				Flags_Scope_Error = 1<<3
 			};
 			enum Flags_Indirect {
 				Flags_Indirect_Normal = 0,
 				Flags_Indirect_RefrenceToSymbol = 1,
-				Flags_Indirect_evalWhileReloc = 2
+				Flags_Indirect_evalWhileReloc = 2,
+				Flags_Indirect_Error
 			};
 			enum Flags_DebDyn {
 				Flags_DebDyn_Normal = 0,
 				Flags_DebDyn_DebugSymbol = 1,
-				Flags_DebDyn_DynamicSymbol = 2
+				Flags_DebDyn_DynamicSymbol = 2,
+				Flags_DebDyn_Error,
 			};
 			enum Flags_FuncFileObj {
 				Flags_FuncFileObj_Normal = 0,
@@ -48,6 +51,7 @@ namespace EmuUtils {
 				Flags_FuncFileObj_File = 2,
 				Flags_FuncFileObj_Obj = 3,
 				Flags_FuncFileObj_Section = 4,
+				Flags_FuncFileObj_Error
 			};
 
 			struct Section {
