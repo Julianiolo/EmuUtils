@@ -196,20 +196,12 @@ EmuUtils::SymbolTable::Symbol::Flags EmuUtils::SymbolTable::generateSymbolFlags(
 
 	return flags;
 }
-std::string EmuUtils::SymbolTable::generateSymbolSection(const char* str, const char* strEnd, size_t* sectStrLen) {
-	if (!strEnd)
-		strEnd = str + std::strlen(str);
+std::string EmuUtils::SymbolTable::generateSymbolSection(const char* start, const char* end) {
+	if(!end)
+		end = start + std::strlen(start);
+	std::string sectionStripped = std::string(StringUtils::stripString_(std::string_view(start, end-start)));
 
-	while(str<strEnd && *str==' ')
-		str++;
-
-	const char* strPtr = str;
-	while (*strPtr != '\t' && strPtr != strEnd)
-		strPtr++;
-	if (sectStrLen)
-		*sectStrLen = strPtr - str;
-
-	std::string sectStr = std::string(str, strPtr);
+	std::string sectStr = std::string(sectionStripped);
 	if (sections.find(sectStr) == sections.end()) {
 		sections[sectStr] = Symbol::Section(sectStr);
 	}
@@ -217,40 +209,73 @@ std::string EmuUtils::SymbolTable::generateSymbolSection(const char* str, const 
 	return sectStr;
 }
 
-EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(const char* start, const char* end) {
+EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(DataUtils::ByteStream* stream) {
 	Symbol symbol;
-	size_t ptr = 0;
-	symbol.value = StringUtils::hexStrToUIntLen<uint64_t>(start, 8) & 0xFFFF;
-	ptr += 8 + 1;
+	
+	// value
+	{
+		std::string_view valueStr = stream->getBytes(8);
+		if (!StringUtils::isValidBaseNum(16, valueStr.data(), valueStr.data() + valueStr.size()))
+			throw std::runtime_error(
+				StringUtils::format("symbol value at %" DU_PRIuSIZE " contains non hex values: \"%s\"", 
+					stream->getOff()-valueStr.size(), std::string(valueStr).c_str())
+			);
+		symbol.value = StringUtils::hexStrToUIntLen<uint64_t>(valueStr.data(), 8) & 0xFFFF;
+	}
+	stream->advance(1); // skip ' '
 
-	symbol.flags = generateSymbolFlags(start + ptr);
-	symbol.flagStr = std::string(start + ptr, 7);
-	ptr += 7 + 1;
+	// flags
+	{
+		std::string_view flagsStr = stream->getBytes(7);
+		symbol.flags = generateSymbolFlags(flagsStr.data());
+		symbol.flagStr = std::string(flagsStr);
+	}
+	stream->advance(1); // skip ' '
 
-	size_t sectStrLen;
-	symbol.section = generateSymbolSection(start + ptr, end, &sectStrLen);
-	ptr += sectStrLen + 1;
+	// section
+	{
+		std::string_view sectionStr = stream->readStr('\t');
+		symbol.section = generateSymbolSection(sectionStr.data(), sectionStr.data() + sectionStr.size());
+	}
+	// we dont need to skip, readStr consumes the '\t'
 
-	symbol.size = StringUtils::hexStrToUIntLen<uint64_t>(start + ptr, 8);
-	ptr += 8 + 1;
+	// size
+	{
+		std::string_view sizeStr = stream->getBytes(8);
+		if (!StringUtils::isValidBaseNum(16, sizeStr.data(), sizeStr.data() + sizeStr.size()))
+			throw std::runtime_error(
+				StringUtils::format("symbol size at %" DU_PRIuSIZE " contains non hex values: \"%s\"", 
+					stream->getOff()-sizeStr.size(), std::string(sizeStr).c_str())
+			);
+		symbol.size = StringUtils::hexStrToUIntLen<uint64_t>(sizeStr.data(), 8);
+	}
+	stream->advance(1); // skip ' '
 
 	symbol.isHidden = false;
-	if (*(start + ptr) == '.') {
+	if (stream->getByte(false) == '.') {
 		constexpr char hiddenStr[] = ".hidden";
-		if ((start + ptr + sizeof(hiddenStr) <= end) && (std::string(start + ptr, start + ptr + sizeof(hiddenStr) - 1) == hiddenStr)) {
-			symbol.isHidden = true;
-			ptr += sizeof(hiddenStr) - 1 + 1;
+		if (stream->canReadAmt(sizeof(hiddenStr)-1)) {
+			size_t beforeOff = stream->getOff();
+			std::string_view str = stream->getBytes(sizeof(hiddenStr)-1);
+			if(std::memcmp(hiddenStr, str.data(), sizeof(hiddenStr)-1)) {
+				symbol.isHidden = true;
+				stream->advance(1);
+			}else{
+				stream->goTo(beforeOff);
+			}
 		}
 	}
 
-	const char* const tabPos = StringUtils::findCharInStr('\t', start + ptr, end);
+	std::string_view rest = stream->readStr('\n', true);
+
+	const char* const tabPos = StringUtils::findCharInStr('\t', rest.data(), rest.data()+rest.size());
 	if (tabPos == nullptr) {
-		symbol.name = std::string(start + ptr, end);
+		symbol.name = std::string(StringUtils::stripString_(rest));
 		symbol.note = "";
 	}
 	else {
-		symbol.name = std::string(start + ptr, tabPos);
-		symbol.note = std::string(tabPos + 1, end);
+		symbol.name = std::string(StringUtils::stripString_(rest.substr(0, tabPos-rest.data())));
+		symbol.note = std::string(tabPos + 1, rest.data() + rest.size());
 		size_t nlPos;
 		while ((nlPos = symbol.note.find("\\n")) != std::string::npos)
 			symbol.note.replace(nlPos, 2, "\n");
@@ -269,20 +294,13 @@ size_t EmuUtils::SymbolTable::parseList(std::vector<Symbol>* vec, const char* st
 	if (size == (size_t)-1)
 		size = std::strlen(str);
 
+	DataUtils::ByteStream stream((const uint8_t*)str+strOff, size-strOff);
+
 	size_t cnt = 0;
 
-	size_t lastLineStart = strOff;
-	for (size_t i = strOff; i < size; i++) {
-		if (str[i] == '\n') {
-			size_t off = i;
-			while(off > lastLineStart && (str[off-1] == '\r' || str[off-1] == '\n'))
-				off--;
-			if ((str + off) - (str + lastLineStart) >= (8 + 1 + 7 + 1 + 0 + 1 + 8 + 1)){
-				vec->push_back(parseLine(str + lastLineStart, str + off));
-				cnt++;
-			}
-			lastLineStart = i + 1;
-		}
+	while(stream.hasLeft()) {
+		vec->push_back(parseLine(&stream));
+		cnt++;
 	}
 	return cnt;
 }
