@@ -7,6 +7,8 @@
 #include <iostream>
 #include <tuple>
 
+#include "DataUtils.h"
+
 #include "ElfReader.h"
 
 namespace EmuUtils {
@@ -112,8 +114,8 @@ namespace EmuUtils {
 		uint32_t genSymbolId();
 
 		Symbol::Flags generateSymbolFlags(const char* str);
-		std::string generateSymbolSection(const char* str, const char* strEnd = 0, size_t* sectStrLen = nullptr);
-		Symbol parseLine(const char* start, const char* end);
+		std::string generateSymbolSection(const char* start, const char* end = nullptr);
+		Symbol parseLine(DataUtils::ByteStream* stream);
 		size_t parseList(std::vector<Symbol>* vec,const char* str, size_t size = -1);
 
 		void setupConnections(size_t cnt, bool postProc = true); 
