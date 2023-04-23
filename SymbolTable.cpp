@@ -22,8 +22,6 @@ bool EmuUtils::SymbolTable::Symbol::Flags::operator==(const Flags& other) const{
 }
 
 
-
-
 EmuUtils::SymbolTable::Symbol::Section::Section() {
 
 }
@@ -521,7 +519,7 @@ bool EmuUtils::SymbolTable::loadDeviceSymbolDump(const char* str, const char* st
 bool EmuUtils::SymbolTable::loadDeviceSymbolDumpFile(const char* path) {
 	std::string fileStr;
 	try {
-		fileStr = StringUtils::loadFileIntoString(path); // (std::string("Cannot Open device symbol table dump File: ") + path).c_str()
+		fileStr = StringUtils::loadFileIntoString(path);
 	}
 	catch (const std::runtime_error& e) {
 		LU_LOGF_(LogUtils::LogLevel_Warning, "Cannot Open device symbol table dump file: \"%s\"", e.what());
@@ -865,12 +863,3 @@ const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::SymbolFeeder::getSym
 
 	return nullptr;
 }
-
-/*
-
-if (startStrOff == nullptr) {
-//LogBackend::log(LogBackend::LogLevel_Warning, "could not read symbol table dump since it doesnt contain \"SYMBOL TABLE:\"");
-//return false;
-}
-
-*/
