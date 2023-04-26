@@ -574,6 +574,8 @@ const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::getSymbolByValue(con
 		size_t mid = from + (to - from) / 2;
 		symb_size_t val = getSymbol(list,mid)->value;
 		if (val == value) {
+			while(mid > 0 && getSymbol(list,mid-1)->value == val)
+				mid--;
 			return getSymbol(list,mid);
 		}
 		else {
@@ -590,10 +592,22 @@ const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::getSymbolByValue(con
 
 		}
 	}
-	const Symbol* s = getSymbol(list,from);
-	if (value >= s->value && value <= s->value + s->size)
-		return s;
-	return nullptr;
+
+	size_t ptr = from;
+	while(true) {
+		const Symbol* s = getSymbol(list,ptr);
+		if (!(value >= s->value && value <= s->value + s->size)) {
+			if(ptr == from) {
+				return nullptr;
+			}else{
+				return getSymbol(list, ptr+1);
+			}
+		}
+		if(ptr == 0)
+			return nullptr;
+
+		ptr--;
+	}
 }
 
 const EmuUtils::SymbolTable::Symbol* EmuUtils::SymbolTable::getSymbolById(uint32_t id) const {
