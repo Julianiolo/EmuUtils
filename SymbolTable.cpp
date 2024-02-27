@@ -207,7 +207,7 @@ std::string EmuUtils::SymbolTable::generateSymbolSection(const char* start, cons
 	return sectStr;
 }
 
-EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(DataUtils::ByteStream* stream) {
+EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(DataUtils::ReadByteStream* stream) {
 	Symbol symbol;
 	
 	// value
@@ -215,7 +215,7 @@ EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(DataUtils::ByteSt
 		std::string_view valueStr = stream->getBytes(8);
 		if (!StringUtils::isValidBaseNum(16, valueStr.data(), valueStr.data() + valueStr.size()))
 			throw std::runtime_error(
-				StringUtils::format("symbol value at %" DU_PRIuSIZE " contains non hex values: \"%s\"", 
+				StringUtils::format("symbol value at %" CU_PRIuSIZE " contains non hex values: \"%s\"", 
 					stream->getOff()-valueStr.size(), std::string(valueStr).c_str())
 			);
 		symbol.value = StringUtils::hexStrToUIntLen<uint64_t>(valueStr.data(), 8) & 0xFFFF;
@@ -242,7 +242,7 @@ EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(DataUtils::ByteSt
 		std::string_view sizeStr = stream->getBytes(8);
 		if (!StringUtils::isValidBaseNum(16, sizeStr.data(), sizeStr.data() + sizeStr.size()))
 			throw std::runtime_error(
-				StringUtils::format("symbol size at %" DU_PRIuSIZE " contains non hex values: \"%s\"", 
+				StringUtils::format("symbol size at %" CU_PRIuSIZE " contains non hex values: \"%s\"", 
 					stream->getOff()-sizeStr.size(), std::string(sizeStr).c_str())
 			);
 		symbol.size = StringUtils::hexStrToUIntLen<uint64_t>(sizeStr.data(), 8);
@@ -292,7 +292,7 @@ size_t EmuUtils::SymbolTable::parseList(std::vector<Symbol>* vec, const char* st
 	if (size == (size_t)-1)
 		size = std::strlen(str);
 
-	DataUtils::ByteStream stream((const uint8_t*)str+strOff, size-strOff);
+	DataUtils::ReadByteStream stream((const uint8_t*)str+strOff, size-strOff);
 
 	size_t cnt = 0;
 

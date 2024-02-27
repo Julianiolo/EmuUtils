@@ -22,7 +22,7 @@ bool EmuUtils::ELF::ELFFile::DWARF::_debug_line::File::operator==(const File& f)
 	return name == f.name && dir == f.dir && time == f.time && size == f.size;
 }
 
-EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Header EmuUtils::ELF::ELFFile::DWARF::_debug_line::parseCUHeader(DataUtils::ByteStream* stream) {
+EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Header EmuUtils::ELF::ELFFile::DWARF::_debug_line::parseCUHeader(DataUtils::ReadByteStream* stream) {
 	CU::Header header;
 
 	header.length                 = (uint32_t)stream->getInt(4);
@@ -37,7 +37,7 @@ EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Header EmuUtils::ELF::ELFFile::D
 
 	return header;
 }
-std::vector<EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Entry> EmuUtils::ELF::ELFFile::DWARF::_debug_line::parseLineByteCode(DataUtils::ByteStream* stream, CU* cu, _debug_line* dl) {
+std::vector<EmuUtils::ELF::ELFFile::DWARF::_debug_line::CU::Entry> EmuUtils::ELF::ELFFile::DWARF::_debug_line::parseLineByteCode(DataUtils::ReadByteStream* stream, CU* cu, _debug_line* dl) {
 	std::vector<CU::Entry> entrys;
 	
 	// state machine vars
@@ -249,7 +249,7 @@ EmuUtils::ELF::ELFFile::DWARF::_debug_line EmuUtils::ELF::ELFFile::DWARF::parse_
 	lines.dirs.clear();
 	lines.files.clear();
 
-	DataUtils::ByteStream stream(data, dataLen, lsb);
+	DataUtils::ReadByteStream stream(data, dataLen, lsb);
 
 	while (stream.hasLeft()) {
 		size_t begin = stream.getOff();
@@ -261,7 +261,7 @@ EmuUtils::ELF::ELFFile::DWARF::_debug_line EmuUtils::ELF::ELFFile::DWARF::parse_
 		size_t prologueEnd = begin + 4 + 2 + 4 + cu.header.header_length;
 
 		if (cu.header.version != 2 || cu.header.opcode_base != 10) { // not valid dwarf2 
-			LU_LOGF_(LogUtils::LogLevel_Warning, "Not valid DWARF2 @%" DU_PRIuSIZE, begin);
+			LU_LOGF_(LogUtils::LogLevel_Warning, "Not valid DWARF2 @%" CU_PRIuSIZE, begin);
 			stream.goTo(end);
 			continue;
 		}
@@ -370,7 +370,7 @@ EmuUtils::ELF::ELFFile::DWARF::_debug_line EmuUtils::ELF::ELFFile::DWARF::parse_
 	return lines;
 }
 
-uint64_t EmuUtils::ELF::ELFFile::DWARF::getUleb128(DataUtils::ByteStream* stream) {
+uint64_t EmuUtils::ELF::ELFFile::DWARF::getUleb128(DataUtils::ReadByteStream* stream) {
 	uint64_t val = 0;
 	uint8_t shift = 0;
 
@@ -384,7 +384,7 @@ uint64_t EmuUtils::ELF::ELFFile::DWARF::getUleb128(DataUtils::ByteStream* stream
 
 	return val;
 }
-int64_t EmuUtils::ELF::ELFFile::DWARF::getSleb128(DataUtils::ByteStream* stream) {
+int64_t EmuUtils::ELF::ELFFile::DWARF::getSleb128(DataUtils::ReadByteStream* stream) {
 	int64_t val = 0;
 	uint8_t shift = 0;
 	uint32_t size = 8 << 3;
@@ -444,7 +444,7 @@ uint64_t EmuUtils::ELF::intFromByteArrAdv(const uint8_t** data, uint8_t byteLen,
 	return res;
 }
 
-EmuUtils::ELF::ELFFile::ELFHeader::Ident EmuUtils::ELF::parseELFHeaderIdentification(DataUtils::ByteStream* stream) {
+EmuUtils::ELF::ELFFile::ELFHeader::Ident EmuUtils::ELF::parseELFHeaderIdentification(DataUtils::ReadByteStream* stream) {
 	ELFFile::ELFHeader::Ident ident;
 
 	stream->read(ident.magic, 4);
@@ -463,7 +463,7 @@ EmuUtils::ELF::ELFFile::ELFHeader::Ident EmuUtils::ELF::parseELFHeaderIdentifica
 	return ident;
 }
 
-EmuUtils::ELF::ELFFile::ELFHeader EmuUtils::ELF::parseELFHeader(DataUtils::ByteStream* stream) {
+EmuUtils::ELF::ELFFile::ELFHeader EmuUtils::ELF::parseELFHeader(DataUtils::ReadByteStream* stream) {
 	ELFFile::ELFHeader header;
 
 	if (!stream->canReadAmt(ELFFile::ELFHeader::Ident::byteSize)) {
@@ -505,7 +505,7 @@ EmuUtils::ELF::ELFFile::ELFHeader EmuUtils::ELF::parseELFHeader(DataUtils::ByteS
 }
 
 
-EmuUtils::ELF::ELFFile::ProgramHeader EmuUtils::ELF::parseELFProgramHeader(DataUtils::ByteStream* stream, const ELFFile::ELFHeader::Ident& ident) {
+EmuUtils::ELF::ELFFile::ProgramHeader EmuUtils::ELF::parseELFProgramHeader(DataUtils::ReadByteStream* stream, const ELFFile::ELFHeader::Ident& ident) {
 	ELFFile::ProgramHeader header;
 
 	bool is64Bit = ident.classtype == ELFFile::ELFHeader::Ident::ClassType_64Bit;
@@ -532,7 +532,7 @@ EmuUtils::ELF::ELFFile::ProgramHeader EmuUtils::ELF::parseELFProgramHeader(DataU
 	return header;
 }
 
-EmuUtils::ELF::ELFFile::SectionHeader EmuUtils::ELF::parseELFSectionHeader(DataUtils::ByteStream* stream, const ELFFile::ELFHeader::Ident& ident) {
+EmuUtils::ELF::ELFFile::SectionHeader EmuUtils::ELF::parseELFSectionHeader(DataUtils::ReadByteStream* stream, const ELFFile::ELFHeader::Ident& ident) {
 	ELFFile::SectionHeader header;
 
 	bool is64Bit = ident.classtype == ELFFile::ELFHeader::Ident::ClassType_64Bit;
@@ -555,7 +555,7 @@ EmuUtils::ELF::ELFFile::SectionHeader EmuUtils::ELF::parseELFSectionHeader(DataU
 	return header;
 }
 
-EmuUtils::ELF::ELFFile::SymbolTableEntry EmuUtils::ELF::parseELFSymbol(DataUtils::ByteStream* stream, const ELFFile::ELFHeader::Ident& ident) {
+EmuUtils::ELF::ELFFile::SymbolTableEntry EmuUtils::ELF::parseELFSymbol(DataUtils::ReadByteStream* stream, const ELFFile::ELFHeader::Ident& ident) {
 	ELFFile::SymbolTableEntry symb;
 
 	bool is64Bit = ident.classtype == ELFFile::ELFHeader::Ident::ClassType_64Bit;
@@ -577,7 +577,7 @@ EmuUtils::ELF::ELFFile EmuUtils::ELF::parseELFFile(const uint8_t* data, size_t d
 	ELFFile file;
 	file.data.resize(dataLen);
 	std::memcpy(&file.data[0], data, dataLen);
-	DataUtils::ByteStream stream(&file.data[0], dataLen);
+	DataUtils::ReadByteStream stream(&file.data[0], dataLen);
 
 	file.header = parseELFHeader(&stream);
 
