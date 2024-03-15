@@ -6,6 +6,7 @@
 #include <string>
 
 #include "DataUtils.h"
+#include "comps/ByteStreamReader.h"
 
 namespace EmuUtils {
 	class ELF {
@@ -247,8 +248,8 @@ namespace EmuUtils {
 					std::vector<File> files;
 					
 
-					static CU::Header parseCUHeader(DataUtils::ReadByteStream* stream);
-					static std::vector<CU::Entry> parseLineByteCode(DataUtils::ReadByteStream* stream, CU* cu, _debug_line* dl);
+					static CU::Header parseCUHeader(ByteStreamReader* stream);
+					static std::vector<CU::Entry> parseLineByteCode(ByteStreamReader* stream, CU* cu, _debug_line* dl);
 
 					CU::Entry* getEntry(size_t ind);
 					const CU::Entry* getEntry(size_t ind) const;
@@ -259,8 +260,8 @@ namespace EmuUtils {
 					size_t sizeBytes() const;
 				} debug_line;
 				static _debug_line parse_debug_line(const uint8_t* data, size_t dataLen, const ELFHeader::Ident& ident);
-				static uint64_t getUleb128(DataUtils::ReadByteStream* stream);
-				static int64_t getSleb128(DataUtils::ReadByteStream* stream);
+				static uint64_t getUleb128(ByteStreamReader* stream);
+				static int64_t getSleb128(ByteStreamReader* stream);
 
 				size_t sizeBytes() const;
 			} dwarf;
@@ -289,11 +290,11 @@ namespace EmuUtils {
 		static uint64_t intFromByteArr(const uint8_t* data, uint8_t byteLen, bool lsb = false);
 		static uint64_t intFromByteArrAdv(const uint8_t** data, uint8_t byteLen, bool lsb = false);
 
-		static ELFFile::ELFHeader::Ident parseELFHeaderIdentification(DataUtils::ReadByteStream* stream);
-		static ELFFile::ELFHeader parseELFHeader(DataUtils::ReadByteStream* stream);
-		static ELFFile::ProgramHeader parseELFProgramHeader(DataUtils::ReadByteStream* stream, const ELFFile::ELFHeader::Ident& ident);
-		static ELFFile::SectionHeader parseELFSectionHeader(DataUtils::ReadByteStream* stream, const ELFFile::ELFHeader::Ident& ident);
-		static ELFFile::SymbolTableEntry parseELFSymbol(DataUtils::ReadByteStream* stream, const ELFFile::ELFHeader::Ident& ident);
+		static ELFFile::ELFHeader::Ident parseELFHeaderIdentification(ByteStreamReader* stream);
+		static ELFFile::ELFHeader parseELFHeader(ByteStreamReader* stream);
+		static ELFFile::ProgramHeader parseELFProgramHeader(ByteStreamReader* stream, const ELFFile::ELFHeader::Ident& ident);
+		static ELFFile::SectionHeader parseELFSectionHeader(ByteStreamReader* stream, const ELFFile::ELFHeader::Ident& ident);
+		static ELFFile::SymbolTableEntry parseELFSymbol(ByteStreamReader* stream, const ELFFile::ELFHeader::Ident& ident);
 
 		static ELFFile::DWARF parseDWARF(const ELFFile& elf);
 	public:

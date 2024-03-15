@@ -207,7 +207,7 @@ std::string EmuUtils::SymbolTable::generateSymbolSection(const char* start, cons
 	return sectStr;
 }
 
-EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(DataUtils::ReadByteStream* stream) {
+EmuUtils::SymbolTable::Symbol EmuUtils::SymbolTable::parseLine(ByteStreamReader* stream) {
 	Symbol symbol;
 	
 	// value
@@ -292,7 +292,7 @@ size_t EmuUtils::SymbolTable::parseList(std::vector<Symbol>* vec, const char* st
 	if (size == (size_t)-1)
 		size = std::strlen(str);
 
-	DataUtils::ReadByteStream stream((const uint8_t*)str+strOff, size-strOff);
+	ByteStreamReader stream((const uint8_t*)str+strOff, size-strOff);
 
 	size_t cnt = 0;
 

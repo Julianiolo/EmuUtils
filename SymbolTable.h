@@ -8,6 +8,7 @@
 #include <tuple>
 
 #include "DataUtils.h"
+#include "comps/ByteStreamReader.h"
 
 #include "ElfReader.h"
 
@@ -115,7 +116,7 @@ namespace EmuUtils {
 
 		Symbol::Flags generateSymbolFlags(const char* str);
 		std::string generateSymbolSection(const char* start, const char* end = nullptr);
-		Symbol parseLine(DataUtils::ReadByteStream* stream);
+		Symbol parseLine(ByteStreamReader* stream);
 		size_t parseList(std::vector<Symbol>* vec,const char* str, size_t size = -1);
 
 		void setupConnections(size_t cnt, bool postProc = true); 
